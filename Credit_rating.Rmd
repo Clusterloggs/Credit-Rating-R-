@@ -1,0 +1,550 @@
+---
+title: "credit_rating"
+author: "Azeez Akintonde"
+date: "2025-01-24"
+output: pdf_document
+---
+
+```{r}
+# Read the file path from the text file
+data_path <- readLines('file_path.txt', warn = FALSE)
+
+# Load the dataset using the path
+credit_df <- read.csv(trimws(data_path))
+```
+
+# DATA EXPLORATORY AND MANIPULATION
+
+##### Gain a comprehensive understanding of the dataset to extract meaningful insights and prepare for in-depth analysis.
+
+```{r}
+head(credit_df)
+```
+
+```{r}
+# Check the dataset dimension
+df_dim <- dim(credit_df)  # Get number of rows and columns
+
+num_rows <- df_dim[1]  # Number of rows
+num_columns <- df_dim[2]  # Number of columns
+
+# Print the result
+cat(sprintf("The dataset contains %d columns and %d rows\n", num_columns, num_rows))
+```
+
+
+```{r}
+# Display all column names in the credit risk dataset
+cat("Column names in the credit risk dataset:\n")
+
+# Loop through column names with index and print
+# This loop iterates over the column names of the data frame `credit_df` and prints them with their corresponding index.
+
+for (index in seq_along(colnames(credit_df))) {
+  # `seq_along(colnames(credit_df))` generates a sequence of numbers from 1 to the number of columns in `credit_df`.
+  # `index` represents the current position in the sequence.
+
+  # Print the column index and name
+  cat(sprintf("%d. %s\n", index, colnames(credit_df)[index]))
+  # `sprintf()` formats the string to include the index and column name.
+  # `%d` is a placeholder for the integer index.
+  # `%s` is a placeholder for the column name (a string).
+  # `cat()` prints the formatted string to the console.
+}
+```
+
+### Column Renaming
+
+##### To facilitate easier computation and analysis, we rename specific columns for clarity and consistency.
+
+```{r}
+# Load the dplyr library
+library(dplyr)
+# The dplyr library provides functions for data manipulation, including renaming columns.
+
+# Define a named vector for renaming columns
+# This vector maps the original column names to new, simplified names.
+columns_to_rename <- c(
+  'person_age' = 'age',                     # Rename 'person_age' to 'age'
+  'person_home_ownership' = 'house',        # Rename 'person_home_ownership' to 'house'
+  'person_income' = 'income',               # Rename 'person_income' to 'income'
+  'person_emp_length' = 'emp_period',       # Rename 'person_emp_length' to 'emp_period'
+  'loan_amnt' = 'loan_amt',                 # Rename 'loan_amnt' to 'loan_amt'
+  'cb_person_default_on_file' = 'default_on_file',  # Rename 'cb_person_default_on_file' to 'default_on_file'
+  'cb_person_cred_hist_length' = 'cred_hist' # Rename 'cb_person_cred_hist_length' to 'cred_hist'
+)
+
+# Rename columns in the dataset
+# Use the `recode()` function from dplyr to rename the columns in the `credit_df` data frame.
+colnames(credit_df) <- recode(colnames(credit_df), !!!columns_to_rename)
+# `colnames(credit_df)` retrieves the current column names of the data frame.
+# `recode()` replaces the old column names with the new names defined in `columns_to_rename`.
+# The `!!!` operator (unquote-splice) is used to expand the named vector into individual arguments for `recode()`.
+```
+
+```{r}
+# Print summary details about the 'credit_df'
+cat("Overview of the dataset:\n")
+
+# Display structure of the dataset (equivalent to Python's .info())
+str(credit_df)
+```
+
+```{r}
+# Check for missing values in the dataset
+missing_values <- any(is.na(credit_df))
+
+# Display information about missing values per column
+cat("Dataset Missing Values Information:\n")
+cat(rep("=", 43), "\n", sep = "")
+cat(sprintf("%-26s | %-15s\n", "Column Name", "Missing Values"))
+cat(rep("=", 43), "\n", sep = "")
+
+# Print the number of missing values for each column
+missing_counts <- colSums(is.na(credit_df))
+for (column in names(missing_counts)) {
+  cat(sprintf("%-26s | %-15d\n", column, missing_counts[column]))
+}
+
+cat(rep("=", 43), "\n", sep = "")
+
+# Print whether there are any missing values in the entire dataset
+if (missing_values) {
+  cat("\nIs there any missing value in the dataset? Yes, data needs cleaning\n")
+} else {
+  cat("\nIs there any missing value in the dataset? No, Data's clean\n")
+}
+```
+
+# DATA CLEANING AND PREPROCESSING
+
+###### Addressing missing values is essential to maintain accuracy and prevent bias in subsequent analysis.
+
+```{r}
+library(VIM)
+# The VIM library provides tools for visualizing and handling missing data, including KNN imputation.
+
+
+# Perform KNN imputation
+credit_df <- kNN(credit_df, 
+                 variable = c(
+                   "emp_period",
+                   "loan_int_rate"),
+                 k = 5
+                 )
+
+```
+
+```{r}
+# Check for missing values in the dataset
+missing_values <- any(is.na(credit_df))
+
+# Display information about missing values per column
+cat("Dataset Missing Values Information:\n")
+cat(rep("=", 43), "\n", sep = "")
+cat(sprintf("%-26s | %-15s\n", "Column Name", "Missing Values"))
+cat(rep("=", 43), "\n", sep = "")
+
+# Print the number of missing values for each column
+missing_counts <- colSums(is.na(credit_df))
+for (column in names(missing_counts)) {
+  cat(sprintf("%-26s | %-15d\n", column, missing_counts[column]))
+}
+
+cat(rep("=", 43), "\n", sep = "")
+
+# Print whether there are any missing values in the entire dataset
+if (missing_values) {
+  cat("\nIs there any missing value in the dataset? Yes, data needs cleaning\n")
+} else {
+  cat("\nIs there any missing value in the dataset? No, Data's clean\n")
+}
+```
+
+```{r}
+# Define the bins and labels for the age groups
+# This step creates bins and labels to categorize ages into groups.
+bins <- c(0, 32, 55, Inf)  # Define the breakpoints for age groups
+labels <- c("20-32", "33-55", "56+")  # Define the labels for each age group
+
+# Create the 'age_group' column using the cut function
+# This step categorizes the 'age' column into the defined age groups and stores the result in a new column.
+credit_df$age_group <- cut(credit_df$age, 
+                           breaks = bins,  # Use the defined bins for categorization
+                           labels = labels,  # Use the defined labels for the groups
+                           right = TRUE  # Include the right endpoint of each interval
+)
+# `cut()` is a function that divides a numeric vector into intervals (bins) and assigns labels to each interval.
+# `credit_df$age` is the numeric column containing age values.
+# `breaks` specifies the boundaries for the bins.
+# `labels` assigns descriptive names to each bin.
+# `right = TRUE` means the intervals are closed on the right (e.g., 32 is included in the "20-32" group).
+```
+
+### Analysis of Unique Values in Each Column
+
+##### Now that the dataset has been cleaned, we can move forward to gain more detailed insights.
+
+##### We will explore the unique values within the categorical columns to better understand the data distribution.
+
+```{r}
+# Explore unique values in categorical columns
+categorical_columns <- names(credit_df)[sapply(credit_df, is.character)]
+
+# Display information about categorical columns
+cat("Unique Values in Categorical Columns:\n\n")
+for (column in categorical_columns) {
+  unique_values <- unique(credit_df[[column]])
+  cat("Column '", column, "':\n", sep = "")
+  cat("Number of Unique Values: ", length(unique_values), "\n", sep = "")
+  cat("Unique Values: ", paste(unique_values, collapse = ", "), "\n\n", sep = "")
+}
+
+# Display the total number of categorical columns
+num_categorical_columns <- length(categorical_columns)
+cat("Total number of categorical columns in the dataset: ", num_categorical_columns, "\n", sep = "")
+```
+
+### Create a duplicate of the preprocessed dataset for further analysis.
+
+```{r}
+# Create a copy of the credit_df and name it 'credit_df2'
+credit_df2 <- credit_df
+
+# Display the copied dataframe (optional)
+credit_df2
+```
+
+### Create a mapping for the 'default_on_file' column, which contains binary values, and apply one-hot encoding to the other three columns. This step is essential because machine learning models require numerical data as input.
+
+```{r}
+# Replace values in 'default_on_file' with their corresponding mapped values
+credit_df2$default_on_file <- ifelse(credit_df2$default_on_file == "N", 0, 1)
+
+# Preview the updated dataframe
+head(credit_df2)
+```
+# EXPLORATORY DATA ANALYSIS
+### Descriptive statistics for all columns
+
+
+```{r}
+# Descriptive statistics for all columns
+summary(credit_df)
+```
+# Plot a Histogram to understand data distribution
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(gridExtra)
+
+# Create histograms for numeric columns and arrange in a grid
+plot_list <- lapply(colnames(credit_df), function(col) {
+  if (is.numeric(credit_df[[col]])) {
+    ggplot(credit_df, aes(x = .data[[col]])) +
+      geom_histogram(bins = 20, fill = viridis::viridis(1), color = "black") +
+      labs(title = col, x = col, y = "Frequency") +
+      theme_minimal()
+  }
+})
+
+# Remove NULL elements and arrange plots in a 2x4 grid
+grid.arrange(grobs = Filter(Negate(is.null), plot_list), ncol = 2, nrow = 4)
+```
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Count occurrences and calculate percentages
+default_counts <- credit_df %>%
+  count(default_on_file) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+# Define 'Set2' colors
+set2_colors <- c("#66C2A5", "#FC8D62")
+
+# Create donut chart
+ggplot(default_counts, aes(x = 2, y = percentage, fill = default_on_file)) +
+  geom_bar(stat = "identity", width = 1, color = "black", linewidth = 0.5) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), 
+            color = "black", size = 5, fontface = "bold") +
+  scale_fill_manual(values = set2_colors) +
+  xlim(0.5, 2.5) +
+  labs(title = "Distribution of Defaulter", fill = "Default on File") +
+  theme_void() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    legend.position = "right",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10)
+  )
+```
+
+The chart illustrates the distribution of loan defaults in the dataset:
+
+ - No (Non-defaulters): Represents approximately four-fifths (about 82%) of the total records, with 26,836 individuals.
+
+- Yes (Defaulters): Accounts for about one-fifth (about 18%) of the total records, with 5,745 individuals.
+
+This confirms that non-defaulters make up the majority, while defaulters constitute a smaller portion of the dataset.
+
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+# Group the data by 'age_group' and 'default_on_file', and count the occurrences
+grouped_data2 <- credit_df %>%
+  group_by(age_group, default_on_file) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  spread(key = default_on_file, value = count, fill = 0)
+
+# Normalize the data to get percentages (optional, similar to the commented-out Python code)
+# grouped_data2 <- grouped_data2 %>%
+#   mutate(across(-age_group, ~ round(. / sum(.) * 100, 2)))
+
+# Convert the data to long format for ggplot2
+grouped_data_long <- grouped_data2 %>%
+  gather(key = "default_on_file", value = "count", -age_group)
+
+# Plotting the stacked bar chart
+ggplot(grouped_data_long, aes(x = age_group, y = count, fill = default_on_file)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Age Group By Default",
+       x = "Age Group",
+       y = "Count",
+       fill = "Default on file")
+```
+```{r}
+# Load necessary libraries
+library(ggplot2)
+
+# Plot relational chart
+ggplot(credit_df, aes(x = loan_int_rate, y = loan_amt, color = default_on_file)) +
+  geom_point(size = 1.5, alpha = 1) +  # Scatter plot
+  scale_color_brewer(palette = "Set2") +  # Use Set2 color palette
+  labs(title = "Loan Amount vs. Loan Interest Rate",  # Add title and axis labels
+       x = "Loan Interest Rate (%)",
+       y = "Loan Amount") +
+  theme_minimal() +  # Use a minimal theme
+  theme(plot.title = element_text(hjust = 0.5))  # Center the title
+```
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+
+# Plot relational chart
+ggplot(credit_df, aes(x = loan_int_rate, y = loan_amt, color = default_on_file)) +
+  geom_point(size = 1.5, alpha = 1) +  # Scatter plot with transparency
+  scale_color_brewer(palette = "Set2") +  # Use Set2 color palette
+  labs(title = "Loan Amount vs. Loan Interest Rate by Default Status",
+       x = "Loan Interest Rate (%)",
+       y = "Loan Amount",
+       color = "Default on File") +  # Legend title
+  theme(legend.position = c(1, 1),  # Position legend outside the plot
+        legend.justification = c(1, 1),  # Align legend to top-right
+        plot.title = element_text(hjust = 0.5)) +  # Center the main title
+  guides(color = guide_legend(override.aes = list(size = 2)))  # Adjust legend point size
+```
+
+# ONE HOT ENCODER
+### We use One-Hot Encoder to convert categorical data into a numerical format that machine learning models can understand. It transforms each category into a binary vector, ensuring no ordinal relationship is implied among categories. This is essential for algorithms that assume numerical inputs, avoiding incorrect interpretations of categorical values.
+
+```{r}
+install.packages("fastDummies")
+
+# Load necessary libraries
+library(fastDummies)
+library(dplyr)
+library(readr)
+
+# Define a list of categorical columns for potential one-hot encoding
+cat_col <- c("house", "loan_intent", "loan_grade", "age_group")
+
+# Create dummy variables for the specified categorical columns with drop_first = TRUE to avoid multicollinearity
+dummy_df <- credit_df2 %>%
+  dummy_cols(select_columns = cat_col, remove_first_dummy = TRUE, remove_selected_columns = FALSE)
+
+# Save dummy_df as a CSV file
+write_csv(dummy_df, "dummy_df.csv")
+
+# Display information about the resulting DataFrame with dummy variables
+cat("Information about the DataFrame with one-hot encoded columns:\n")
+str(dummy_df)
+```
+# CORRELATION COEFFICIENNT
+### Calculation the corr coefficient for feature selection
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+
+# Extract numeric columns for correlation calculation
+numeric_df <- dummy_df %>%
+  select(where(is.numeric))  # Select only numeric columns
+
+# Calculate correlation coefficients between 'loan_int_rate' and numerical features
+correlation_matrix <- cor(numeric_df, use = "complete.obs")  # Handle missing values if any
+loan_int_rate_corr <- correlation_matrix[, "loan_int_rate"] %>%
+  sort(decreasing = TRUE)  # Sort correlation coefficients in descending order
+```
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(scales)
+library(viridis)
+
+# Convert the correlation vector to a data frame for better handling
+loan_int_rate_corr_df <- data.frame(
+  Feature = names(loan_int_rate_corr),
+  Coefficient = loan_int_rate_corr
+)
+
+# Remove 'loan_int_rate' from the data frame
+loan_int_rate_corr_df <- loan_int_rate_corr_df[loan_int_rate_corr_df$Feature != "loan_int_rate", ]
+
+# Create a horizontal bar plot with custom colors and color scale
+ggplot(loan_int_rate_corr_df, aes(x = Coefficient, y = reorder(Feature, Coefficient), fill = Coefficient)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis(option = "viridis", direction = -1) +  # Use viridis color palette
+  labs(title = "Feature Correlation with Loan Interest Rate",
+       x = "Correlation Coefficient",
+       y = "Feature") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.position = "none") +  # Remove legend
+  #geom_text(aes(label = sprintf("%.3f", Coefficient)), hjust = -0.2, size = 3.5) +  # Add coefficient values
+  scale_x_continuous(expand = expansion(mult = c(0, 0.1)))  # Adjust x-axis scale for better spacing
+```
+
+# MACHINE LEARNING
+### Set the feature varibales as ['loan_int_rate', 'loan_percent_income', 'loan_amt']
+### and Target Varibale as Default_on_file
+```{r}
+# Load necessary libraries
+library(caret)
+library(dplyr)
+
+# Define features and target variable
+features <- c("loan_int_rate", "loan_percent_income", "loan_amt")
+target <- "default_on_file"
+
+# Extract features (X) and target variable (y)
+X <- dummy_df %>% select(all_of(features))  # Select features
+y <- dummy_df[[target]]  # Extract target variable
+
+# Split the data into training and testing sets (80% train, 20% test)
+set.seed(43)  # Set random seed for reproducibility
+split_index <- createDataPartition(y, p = 0.8, list = FALSE)  # 80% training, 20% testing
+X_train <- X[split_index, ]  # Training features
+X_test <- X[-split_index, ]  # Testing features
+y_train <- y[split_index]  # Training target
+y_test <- y[-split_index]  # Testing target
+
+# Display the shapes of the training and testing sets
+cat("Training features shape (X_train):", dim(X_train), "\n")
+cat("Testing features shape (X_test):", dim(X_test), "\n")
+```
+```{r}
+# Load required libraries
+library(caret)
+
+# Fit logistic regression model and print summary
+logistic_model <- glm(default_on_file ~ ., data = cbind(X_train, default_on_file = y_train), family = binomial)
+print(summary(logistic_model))
+
+# Make predictions on test data
+y_pred_class_lg <- ifelse(predict(logistic_model, newdata = X_test, type = "response") > 0.5, 1, 0)
+
+# Compute and print confusion matrix
+conf_matrix_lg <- confusionMatrix(as.factor(y_pred_class_lg), as.factor(y_test))
+print(conf_matrix_lg$table)
+
+# Print key evaluation metrics
+cat("\nAccuracy:", conf_matrix_lg$overall["Accuracy"],
+    "\nPrecision:", conf_matrix_lg$byClass["Precision"], 
+    "\nRecall:", conf_matrix_lg$byClass["Recall"], 
+    "\nF1-Score:", conf_matrix_lg$byClass["F1"], "\n")
+```
+
+
+```{r}
+# Load required libraries
+library(randomForest)
+library(caret)
+
+# Fit Random Forest model
+rf_model <- randomForest(default_on_file ~ ., data = cbind(X_train, default_on_file = y_train), ntree = 100, importance = TRUE)
+
+# Print model summary
+print(rf_model)  
+
+# Make predictions on test data
+y_pred_class_rf <- ifelse(predict(rf_model, newdata = X_test, type = "response") > 0.5, 1, 0)
+
+# Compute and print confusion matrix
+conf_matrix_rf <- confusionMatrix(as.factor(y_pred_class_rf), as.factor(y_test))
+print(conf_matrix_rf$table)
+
+# Print key evaluation metrics
+cat("\nAccuracy:", conf_matrix_rf$overall["Accuracy"],
+    "\nPrecision:", conf_matrix_rf$byClass["Precision"], 
+    "\nRecall:", conf_matrix_rf$byClass["Recall"], 
+    "\nF1-Score:", conf_matrix_rf$byClass["F1"], "\n")
+```
+```{r}
+# Function to get validated user input
+# This function repeatedly prompts the user until a valid non-negative number is entered.
+get_valid_input <- function(prompt) {
+  while (TRUE) {
+    input <- readline(prompt = prompt)  # Prompt the user for input
+    input <- as.numeric(input)  # Convert the input to a numeric value
+    if (!is.na(input) && input >= 0) {  # Check if the input is a valid non-negative number
+      return(input)  # Return the valid input
+    } else {
+      cat("Error: Please enter a valid non-negative number.\n")  # Display an error message if input is invalid
+    }
+  }
+}
+
+# Getting input from the user with validation
+# Prompt the user to enter the loan interest rate, ensuring it is a valid non-negative number
+interest_rate <- get_valid_input("Enter loan interest rate (as a decimal, e.g., 0.05 for 5%): ")
+
+# Prompt the user to enter the loan percent of income, ensuring it is a valid non-negative number
+percent_income <- get_valid_input("Enter loan percent of income (e.g., 20 for 20%): ")
+
+# Prompt the user to enter the loan amount, ensuring it is a valid non-negative number
+loan_amount <- get_valid_input("Enter loan amount: ")
+
+# Creating a data frame for the input
+# Store the validated inputs in a data frame for further processing
+input_data <- data.frame(
+  loan_int_rate = interest_rate,  # Loan interest rate
+  loan_percent_income = percent_income,  # Loan percent of income
+  loan_amt = loan_amount  # Loan amount
+)
+
+# Making the prediction
+# Use a pre-trained logistic regression model to predict the probability of default
+prediction_prob <- predict(rf_model, newdata = input_data, type = "response")
+
+# Convert the probability to a binary classification (0 or 1) based on a threshold of 0.5
+prediction_class <- ifelse(prediction_prob > 0.5, 1, 0)
+
+# Printing the prediction result
+# Display the prediction result, indicating whether the user is likely to default on the loan
+cat("Would He/She default on file?:", ifelse(prediction_class == 1, "Yes", "No"), "\n")
+```
+
